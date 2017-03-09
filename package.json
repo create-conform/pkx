@@ -2,16 +2,17 @@
   "name": "pkx",
   "version": "1.0.0",
   "description": "Toolkit for developing PKX modules.",
-  "main": "index.js",
+  "main": "pkx.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "git clone --recursive https://github.com/create-conform/pkx"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/create-conform/pkx.git"
   },
-  "dependencies" : {
-    "using.js": "git+https://github.com/create-conform/using.js.git"
+  "dependencies": {
+    "commander": "^2.9.0"
   },
   "bin": {
     "pkx": "bin/pkx-util.js"
