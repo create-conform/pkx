@@ -1,3 +1,9 @@
+[submodule "cc.pkx"]
+	path = cc.pkx
+	url = https://github.com/create-conform/cc.pkx
+[submodule "cc.error"]
+	path = cc.error
+	url = https://github.com/create-conform/cc.error
 [submodule "using.js"]
 	path = using.js
 	url = https://github.com/create-conform/using.js
