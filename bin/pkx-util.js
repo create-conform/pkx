@@ -34,6 +34,7 @@ program
     .option("-i, --info <request>", "Shows basic package information.")
     .option("--init", "Creates an empty pkx project.")
     .option("--install", "Installs the git pre-commit hook for automatic versionning.")
+    .option("--nopkx", "When performing install, this parameter indicates the given package is not pkx compatbile and will not perform the pre-commit hook.")
     //.option("-m, --minify", "Enables code minification upon build.")
     //.option("-p, --publish", "Publish the pkx to the repository.")
     .option("--uninstall", "Removes the git pre-commit hook for automatic versionning.")
@@ -391,11 +392,14 @@ function install(dir) {
     }
 
     try {
-        // add commit hook to pkx build
-        var preCommitScript = path.join(dir, ".git", "hooks", "pre-commit");
-        var scriptFile = path.join(process.cwd(), preCommitScript);
-        fs.writeFileSync(scriptFile, "#! /bin/sh\npkx build\nexit $?");
-        fs.chmodSync(scriptFile, 0755);
+        if (!program.nopkx) {
+            console.log("Adding git pre-commit hook for automatic versionning.");
+            // add commit hook to pkx build
+            var preCommitScript = path.join(dir, ".git", "hooks", "pre-commit");
+            var scriptFile = path.join(process.cwd(), preCommitScript);
+            fs.writeFileSync(scriptFile, "#! /bin/sh\npkx build\nexit $?");
+            fs.chmodSync(scriptFile, 0755);
+        }
 
         // install all npm dependencies recursively
         try {
@@ -448,7 +452,9 @@ function install(dir) {
         console.error("An error occurred while trying to create the git pre-commit hook.", e);
         return;
     }
-    console.log("Successfully " + (dir != ""? "cloned repository and " : "") + "installed pre-commit hook!");
+    if (!program.nopkx) {
+        console.log("Successfully " + (dir != "" ? "cloned repository and " : "") + "installed pre-commit hook!");
+    }
 }
 
 function uninstall() {
