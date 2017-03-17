@@ -42,8 +42,8 @@ if (!program.nopkx && !program.self) {
 }
 
 var URL_GIT_CCDUMMY = "https://github.com/create-conform/cc.dummy/archive/master.tar.gz";
-var PATH_TAR = (process.platform == "win32"? __dirname + "\\bin\\win32\\tar\\tar.exe": "tar");
-var PATH_CURL = (process.platform == "win32"? __dirname + "\\bin\\win32\\curl\\curl.exe" : "curl");
+var PATH_TAR = (process.platform == "win32"? path.dirname(__dirname) + "\\bin\\win32\\tar\\tar.exe": "tar");
+var PATH_CURL = (process.platform == "win32"? path.dirname(__dirname) + "\\bin\\win32\\curl\\curl.exe" : "curl");
 
 if (program.info) {
     var request = getRequestArgument(program.info);
@@ -436,7 +436,10 @@ function installGitSubmodules(cwd) {
                 done = true;
                 var pathSubModNest = path.join(cwd, submodules[s]);
                 console.log("Updating npm dependencies for git submodule '" + submodules[s] + "'.");
-                process.stdout.write(childProcess.execSync("npm update 2>&1", { "cwd" : cwd }));
+                var result = childProcess.spawnSync("npm", ["update"], { "cwd" : cwd });
+                process.stdout.write(result.stdout);
+                process.stderr.write(result.stderr);
+                //process.stdout.write(childProcess.execSync("npm update 2>&1", { "cwd" : cwd }));
 
                 // check if submodules file is present
                 try {

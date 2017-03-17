@@ -1,6 +1,6 @@
 {
   "name": "pkx",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Toolkit for developing PKX modules.",
   "main": "pkx.js",
   "scripts": {
