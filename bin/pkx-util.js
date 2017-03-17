@@ -30,6 +30,7 @@ program
     .option("--nopkx", "When performing install, this parameter indicates the given package is not pkx compatbile and will not perform the pre-commit hook.")
     //.option("-m, --minify", "Enables code minification upon build.")
     //.option("-p, --publish", "Publish the pkx to the repository.")
+    .option("--self", "Used for installing this pkx tool.")
     .option("--uninstall", "Removes the git pre-commit hook for automatic versionning.")
     .option("-w, --wrap <request>", "Creates a wrapped script that can be used for embedding.") //TODO
     .parse(process.argv);
@@ -394,7 +395,7 @@ function install(dir) {
         console.error("An error occurred while trying to create the git pre-commit hook.", e);
         return;
     }
-    if (!program.nopkx) {
+    if (!program.nopkx && !program.self) {
         console.log("Successfully " + (dir != "" ? "cloned repository and " : "") + "installed pre-commit hook!");
     }
 }
