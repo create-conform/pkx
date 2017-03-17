@@ -210,7 +210,7 @@ if (program.init) {
         openPKX();
     } catch (e) {
         console.log("Fetching cc.dummy template from github.com...");
-        childProcess.exec(PATH_CURL + " -L \"" + URL_GIT_CCDUMMY + "\" | " + PATH_TAR + " --strip-components=1 -zx", function (error, stdout, stderr) {
+        childProcess.exec(PATH_CURL + " --insecure -L \"" + URL_GIT_CCDUMMY + "\" | " + PATH_TAR + " --strip-components=1 -zx", function (error, stdout, stderr) {
             process.stdout.write(stdout);
             process.stderr.write(stderr);
             if (error) {
