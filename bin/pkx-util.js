@@ -451,7 +451,9 @@ function installGitSubmodules(cwd, callback) {
                 function subModNestDone() {
                     process.stdout.write(childProcess.execSync("cd .."));
 
-                    callback();
+                    if (callback) {
+                        callback();
+                    }
                 }
             }
             if (!done) {
