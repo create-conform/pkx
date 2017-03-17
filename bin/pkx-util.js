@@ -19,13 +19,6 @@ var program = require("commander");
 var using = require("../using.js/using.js");
 var error = require("../cc.error/error.js");
 
-define.parameters.configuration = { "repository" : "http://localhost:8080/repo" };
-var pkx = require("../cc.pkx/pkx.js");
-
-var URL_GIT_CCDUMMY = "https://github.com/create-conform/cc.dummy/archive/master.tar.gz";
-var PATH_TAR = (process.platform == "win32"? process.cwd() + "\\bin\\win32\\tar\\tar.exe": "tar");
-var PATH_CURL = (process.platform == "win32"? process.cwd() + "\\bin\\win32\\curl\\curl.exe" : "curl");
-
 program
     .option("-b, --build", "Creates the pkx archive in the bin folder and increments the build number.")
     .option("--major", "Increments the major version number upon build.")
@@ -40,6 +33,16 @@ program
     .option("--uninstall", "Removes the git pre-commit hook for automatic versionning.")
     .option("-w, --wrap <request>", "Creates a wrapped script that can be used for embedding.") //TODO
     .parse(process.argv);
+
+var pkx;
+if (!program.nopkx) {
+    define.parameters.configuration = { "repository" : "http://localhost:8080/repo" };
+    var pkx = require("../cc.pkx/pkx.js");
+}
+
+var URL_GIT_CCDUMMY = "https://github.com/create-conform/cc.dummy/archive/master.tar.gz";
+var PATH_TAR = (process.platform == "win32"? process.cwd() + "\\bin\\win32\\tar\\tar.exe": "tar");
+var PATH_CURL = (process.platform == "win32"? process.cwd() + "\\bin\\win32\\curl\\curl.exe" : "curl");
 
 if (program.info) {
     var request = getRequestArgument(program.info);
@@ -366,22 +369,6 @@ if (program.wrap) {
 if (program.minify || program.publish) {
     console.error("This feature is not yet implemented. Work in progress.");
 }
-
-/*function exec(bin, args) {
-    return new Promise(function(resolve, reject) {
-        var exe = childProcess.spawn(bin, args);
-        exe.stdout.pipe(process.stdout);
-        exe.stderr.pipe(process.stderr);
-        exe.on("close", function(code) {
-            if (code == 0) {
-                resolve(code);
-            }
-            else {
-                reject(code);
-            }
-        });
-    });
-}*/
 
 function install(dir) {
     if (dir) {
