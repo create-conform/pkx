@@ -323,7 +323,7 @@ if (program.wrap) {
             var modPath = path.join(process.cwd(), modId);
             var modName = path.join(modPath, module.id == module.parameters.pkx.id + "/" ? module.parameters.pkx.main : module.id.substr(module.parameters.pkx.id.length + 1));
 
-            order.push({ "module" : module, "path" : modPath, "file" : modName });
+            order[module.id] = { "module" : module, "path" : modPath, "file" : modName };
 
             return new Promise(function(resolve, reject) {
                 module.factory.readAsString().then(function (code) {
@@ -360,7 +360,7 @@ if (program.wrap) {
         wrapModules(arguments);
         var strOrder = "Order for including: \r\n";
         for (var o in order) {
-            strOrder += order[o].module.id + "\r\n";
+            strOrder += o + "\r\n";//order[o].module.id + "\r\n";
         }
         console.log(strOrder);
     }, usingFailed, true);
@@ -399,7 +399,7 @@ function install(dir) {
     }
 }
 
-function installGitSubmodules(cwd, callback) {
+function installGitSubmodules(cwd) {
     // install all npm dependencies recursively
     try {
         var pathSubMod = path.join(cwd, ".gitmodules");
@@ -433,27 +433,18 @@ function installGitSubmodules(cwd, callback) {
             var done = false;
             for (var s in submodules) {
                 done = true;
+                var pathSubModNest = path.join(cwd, submodules[s]);
                 console.log("Updating npm dependencies for submodule '" + submodules[s] + "'.");
-                process.stdout.write(childProcess.execSync("cd " + submodules[s]));
-                process.stdout.write(childProcess.execSync("npm update 2>&1"));
+                process.stdout.write(childProcess.execSync("npm update 2>&1", { "cwd" : cwd }));
 
                 // check if submodules file is present
                 try {
-                    var pathSubModNest = path.join(cwd, submodules[s]);
                     fs.accessSync(path.join(pathSubModNest, ".gitmodules"), fs.F_OK);
 
-                    installGitSubmodules(pathSubModNest, subModNestDone);
+                    installGitSubmodules(pathSubModNest);
                 }
                 catch(e) {
-                    subModNestDone();
-                }
-
-                function subModNestDone() {
-                    process.stdout.write(childProcess.execSync("cd .."));
-
-                    if (callback) {
-                        callback();
-                    }
+                    // ignore
                 }
             }
             if (!done) {
