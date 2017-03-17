@@ -4,7 +4,7 @@
   "description": "Toolkit for developing PKX modules.",
   "main": "pkx.js",
   "scripts": {
-    "postinstall": "pkx install --no-pkx"
+    "postinstall": "pkx install --nopkx"
   },
   "repository": {
     "type": "git",
