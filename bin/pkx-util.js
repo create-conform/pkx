@@ -35,14 +35,14 @@ program
     .parse(process.argv);
 
 var pkx;
-if (!program.nopkx) {
+if (!program.nopkx && !program.self) {
     define.parameters.configuration = { "repository" : "http://localhost:8080/repo" };
     var pkx = require("../cc.pkx/pkx.js");
 }
 
 var URL_GIT_CCDUMMY = "https://github.com/create-conform/cc.dummy/archive/master.tar.gz";
-var PATH_TAR = (process.platform == "win32"? process.cwd() + "\\bin\\win32\\tar\\tar.exe": "tar");
-var PATH_CURL = (process.platform == "win32"? process.cwd() + "\\bin\\win32\\curl\\curl.exe" : "curl");
+var PATH_TAR = (process.platform == "win32"? __dirname + "\\bin\\win32\\tar\\tar.exe": "tar");
+var PATH_CURL = (process.platform == "win32"? __dirname + "\\bin\\win32\\curl\\curl.exe" : "curl");
 
 if (program.info) {
     var request = getRequestArgument(program.info);
@@ -379,7 +379,7 @@ function install(dir) {
     }
 
     try {
-        if (!program.nopkx) {
+        if (!program.nopkx && !program.self) {
             console.log("Adding git pre-commit hook for automatic versionning.");
             // add commit hook to pkx build
             var preCommitScript = path.join(dir, ".git", "hooks", "pre-commit");
@@ -388,7 +388,7 @@ function install(dir) {
             fs.chmodSync(scriptFile, 0755);
         }
 
-        installGitSubmodules(process.cwd());
+        installGitSubmodules(program.self? __dirname : process.cwd());
     }
     catch(e) {
         console.error("An error occurred while trying to create the git pre-commit hook.", e);
@@ -434,7 +434,7 @@ function installGitSubmodules(cwd) {
             for (var s in submodules) {
                 done = true;
                 var pathSubModNest = path.join(cwd, submodules[s]);
-                console.log("Updating npm dependencies for submodule '" + submodules[s] + "'.");
+                console.log("Updating npm dependencies for git submodule '" + submodules[s] + "'.");
                 process.stdout.write(childProcess.execSync("npm update 2>&1", { "cwd" : cwd }));
 
                 // check if submodules file is present

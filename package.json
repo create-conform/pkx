@@ -1,10 +1,10 @@
 {
   "name": "pkx",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Toolkit for developing PKX modules.",
   "main": "pkx.js",
   "scripts": {
-    "postinstall": "pkx install --nopkx"
+    "postinstall": "pkx install --self"
   },
   "repository": {
     "type": "git",
