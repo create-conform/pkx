@@ -388,52 +388,7 @@ function install(dir) {
             fs.chmodSync(scriptFile, 0755);
         }
 
-        // install all npm dependencies recursively
-        try {
-            var pathSubMod = path.join(process.cwd(), ".gitmodules");
-            fs.accessSync(pathSubMod, fs.F_OK);
-
-            var subHead = "[submodule ";
-            var headFound = false;
-            var submodules = [];
-            var sub = readline.createInterface({
-                input: fs.createReadStream(pathSubMod)
-            });
-
-            sub.on("line", function (line) {
-                if (line.substr(0, subHead.length) == subHead) {
-                    headFound = true;
-                }
-                else {
-                    headFound = false;
-                }
-
-                if (!headFound ) {
-                    var kv = line.split("=");
-                    var key = kv[0].trim();
-                    var value = kv[1].trim();
-                    if (key == "path") {
-                        submodules.push(value);
-                    }
-                }
-            });
-            sub.on("close", function () {
-                var done = false;
-                for (var s in submodules) {
-                    done = true;
-                    console.log("Updating npm dependencies for submodule '" + submodules[s] + "'.");
-                    process.stdout.write(childProcess.execSync("cd " + submodules[s]));
-                    process.stdout.write(childProcess.execSync("npm update 2>&1"));
-                    process.stdout.write(childProcess.execSync("cd .."));
-                }
-                if (!done) {
-                    console.log("No git submodules to install.");
-                }
-            });
-
-        } catch (e) {
-            console.log("No git submodules to install.");
-        }
+        installGitSubmodules(process.cwd());
     }
     catch(e) {
         console.error("An error occurred while trying to create the git pre-commit hook.", e);
@@ -441,6 +396,71 @@ function install(dir) {
     }
     if (!program.nopkx) {
         console.log("Successfully " + (dir != "" ? "cloned repository and " : "") + "installed pre-commit hook!");
+    }
+}
+
+function installGitSubmodules(cwd, callback) {
+    // install all npm dependencies recursively
+    try {
+        var pathSubMod = path.join(cwd, ".gitmodules");
+        fs.accessSync(pathSubMod, fs.F_OK);
+
+        var subHead = "[submodule ";
+        var headFound = false;
+        var submodules = [];
+        var sub = readline.createInterface({
+            input: fs.createReadStream(pathSubMod)
+        });
+
+        sub.on("line", function (line) {
+            if (line.substr(0, subHead.length) == subHead) {
+                headFound = true;
+            }
+            else {
+                headFound = false;
+            }
+
+            if (!headFound ) {
+                var kv = line.split("=");
+                var key = kv[0].trim();
+                var value = kv[1].trim();
+                if (key == "path") {
+                    submodules.push(value);
+                }
+            }
+        });
+        sub.on("close", function () {
+            var done = false;
+            for (var s in submodules) {
+                done = true;
+                console.log("Updating npm dependencies for submodule '" + submodules[s] + "'.");
+                process.stdout.write(childProcess.execSync("cd " + submodules[s]));
+                process.stdout.write(childProcess.execSync("npm update 2>&1"));
+
+                // check if submodules file is present
+                try {
+                    var pathSubModNest = path.join(cwd, submodules[s]);
+                    fs.accessSync(path.join(pathSubModNest, ".gitmodules"), fs.F_OK);
+
+                    installGitSubmodules(pathSubModNest, subModNestDone);
+                }
+                catch(e) {
+                    subModNestDone();
+                }
+
+                function subModNestDone() {
+                    process.stdout.write(childProcess.execSync("cd .."));
+
+                    callback();
+                }
+            }
+            if (!done) {
+                console.log("No git submodules to install.");
+            }
+        });
+
+    } catch (e) {
+        console.log("No git submodules to install.");
     }
 }
 
