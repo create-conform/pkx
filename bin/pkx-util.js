@@ -389,7 +389,7 @@ function install(dir) {
             fs.chmodSync(scriptFile, 0755);
         }
 
-        installGitSubmodules(program.self? __dirname : process.cwd());
+        installGitSubmodules(program.self? path.dirname(__dirname) : process.cwd());
     }
     catch(e) {
         console.error("An error occurred while trying to create the git pre-commit hook.", e);
