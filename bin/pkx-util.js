@@ -437,8 +437,8 @@ function installGitSubmodules(cwd) {
                 var pathSubModNest = path.join(cwd, submodules[s]);
                 console.log("Updating npm dependencies for git submodule '" + submodules[s] + "'.");
                 var result = childProcess.spawnSync("npm", ["update"], { "cwd" : cwd });
-                console.log(result.stdout.toString());
-                console.error(result.stderr.toString());
+                //console.log(result.stdout.toString());
+                //console.error(result.stderr.toString());
                 //process.stdout.write(childProcess.execSync("npm update 2>&1", { "cwd" : cwd }));
 
                 // check if submodules file is present
