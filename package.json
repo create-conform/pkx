@@ -1,11 +1,8 @@
 {
   "name": "pkx",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "description": "Toolkit for developing PKX modules.",
   "main": "pkx.js",
-  "scripts": {
-    "postinstall": "pkx install --self"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/create-conform/pkx.git"

@@ -35,6 +35,27 @@ program
     .option("-w, --wrap <request>", "Creates a wrapped script that can be used for embedding.") //TODO
     .parse(process.argv);
 
+if (!program.install && !program.self) {
+    var installedFile = path.join(__dirname, "INSTALLED");
+    try {
+        fs.accessSync(installedFile, fs.F_OK);
+    } catch (e) {
+        console.log("Preparing pkx for first use (this might take a minute)...");
+
+        var result = childProcess.execSync("pkx install --self");
+        //if (result.status == 0) {
+            fs.writeFileSync(installedFile, "DONE");
+            console.log("Ready.");
+        /*}
+        else {
+            console.error("An error occurred while preparing pkx for first use.");
+            console.log(result.stdout.toString());
+            console.error(result.stderr.toString());
+            return;
+        }*/
+    }
+}
+
 var pkx;
 if (!program.nopkx && !program.self) {
     define.parameters.configuration = { "repository" : "http://localhost:8080/repo" };
@@ -58,7 +79,7 @@ if (program.info) {
 
 if (program.build) {
     // read the package.json file
-    var pkxVolume = new pkx.PKXVolume("file://" + process.cwd() + "/");
+    var pkxVolume = new pkx.PKXVolume("file://" + (process.platform =="win32"? "/" : "") + process.cwd().replace(/\\/g, "/") + "/");
     pkxVolume.then(function (volume) {
         // increment version
         var newVersion = volume.pkx.version;
@@ -210,7 +231,7 @@ if (program.init) {
         openPKX();
     } catch (e) {
         console.log("Fetching cc.dummy template from github.com...");
-        childProcess.exec(PATH_CURL + " --insecure -L \"" + URL_GIT_CCDUMMY + "\" | " + PATH_TAR + " --strip-components=1 -zx", function (error, stdout, stderr) {
+        childProcess.exec(PATH_CURL + " --insecure -L \"" + URL_GIT_CCDUMMY + "\" | " + PATH_TAR + " --strip-components=1 -zx", (process.platform == "win32" ? { env: { "PATH": path.dirname(__dirname) + "\\bin\\win32\\tar\\" }} : {}), function (error, stdout, stderr) {
             process.stdout.write(stdout);
             process.stderr.write(stderr);
             if (error) {
@@ -234,7 +255,7 @@ if (program.init) {
         }
 
         // overwrite the package.json file
-        var pkxVolume = new pkx.PKXVolume("file://" + process.cwd() + "/");
+        var pkxVolume = new pkx.PKXVolume("file://" + (process.platform =="win32"? "/" : "") + process.cwd().replace(/\\/g, "/") + "/");
         pkxVolume.then(function (volume) {
             volume.pkx.company = "";
             volume.pkx.version = "0.0.0";
