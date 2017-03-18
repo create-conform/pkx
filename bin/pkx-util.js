@@ -148,7 +148,7 @@ if (program.build) {
                     exclOptn += " --exclude='" + exclList[e] + "/*' --exclude='" + exclList[e] + "'";
                 }
 
-                childProcess.exec(PATH_TAR + " -cvf " + pkxPath + exclOptn + " *", function (error, stdout, stderr) {
+                childProcess.exec(PATH_TAR + " -cvf " + (process.platform == "win32" ? "/" + pkxPath.replace(/\\/g, "/").replace(/:/, "") : pkxPath) + (process.platform == "win32" ? exclOptn.replace(/\\/g, "/") : exclOptn) + " *", function (error, stdout, stderr) {
                     process.stdout.write(stdout);
                     process.stderr.write(stderr);
                     if (error) {
