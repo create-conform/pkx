@@ -134,7 +134,6 @@ if (program.profile) {
 
 
 var profile = config.get(config.activeProfile);
-console.log(JSON.stringify(profile));
 
 if (program.set) {
     if (!profile.has(program.set[0])) {
