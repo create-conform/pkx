@@ -220,13 +220,14 @@ if (program.build) {
                 var pkxPath = path.join(buildDir, volume.pkx.id.substr(0, volume.pkx.id.lastIndexOf("."))  + ".pkx");
 
                 var exclList = [];
-                for (var d in volume.pkx.dependencies) {
+                var pkxDeps = volume.pkx.pkxDependencies || volume.pkx.dependencies;
+                for (var d in pkxDeps) {
                     if (isNaN(d)) {
                         continue;
                     }
-                    var name = volume.pkx.dependencies[d];
-                    if (typeof volume.pkx.dependencies[d] == "object") {
-                        name = volume.pkx.dependencies[d].package || "";
+                    var name = pkxDeps[d];
+                    if (typeof pkxDeps[d] == "object") {
+                        name = pkxDeps[d].package || "";
                     }
                     var pkxName = "";
                     var nameParts = name.split(".");
@@ -415,6 +416,7 @@ if (program.init) {
 if (program.wrap) {
     var request = getRequestArgument(program.wrap, true);
     var order = [];
+    var done = [];
 
     using.apply(using, request).then(function() {
         function wrapModules(modules) {
@@ -425,7 +427,7 @@ if (program.wrap) {
 
         function wrapModule(module) {
             // save dependencies
-            wrapModules(module.parameters ? module.parameters.dependencies : []);
+            wrapModules(module.dependencies ? module.dependencies : []);
 
             // save self
             saveWrappedModule(module).then();
@@ -452,6 +454,11 @@ if (program.wrap) {
                         console.warn("Ignoring non-pkx module '" + module.id + "'.");
                         return;
                     }
+                    if (done[module.id]) {
+                        resolve();
+                        return;
+                    }
+                    done[module.id] = module;
 
                     // create directory with module id
                     try {
