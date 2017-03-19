@@ -19,11 +19,49 @@ var program = require("commander");
 var using = require("../using.js/using.js");
 var error = require("../cc.error/error.js");
 
+var configDefaultProfile = {
+    "repo": "https://pacify.cc"
+};
+var configDefault = {
+    "activeProfile": "pacify",
+    "pacify": configDefaultProfile,
+    "dev": {
+        "repo": "http://localhost"
+    },
+    "prod": configDefaultProfile
+};
+var configDir = path.join(__dirname, "..", "config");
+var configFile = path.join(configDir, "default.json");
+try {
+    fs.mkdirSync(configDir);
+}
+catch(e) {
+    if (e.code != "EEXIST") {
+        console.error("Could not create config directory!");
+        return;
+    }
+}
+try {
+    fs.accessSync(configFile, fs.F_OK);
+} catch (e) {
+    try {
+        fs.writeFileSync(configFile, JSON.stringify(configDefault, null, "  "));
+    }
+    catch(e) {
+        console.error("Could not create default configuration file!");
+        return;
+    }
+}
+
+
+var config = require("config");
+
 program
     .option("-b, --build", "Creates the pkx archive in the bin folder and increments the build number.")
     .option("--major", "Increments the major version number upon build.")
     .option("--minor", "Increments the minor version number upon build.")
     .option("-c, --clone <repository>", "Same as git clone, but runs install after.")
+    .option("--profile [add|remove|switch] [profile]", "Performs profile operations.")
     .option("-i, --info <request>", "Shows basic package information.")
     .option("--init", "Creates an empty pkx project.")
     .option("--install", "Installs the git pre-commit hook for automatic versionning.")
@@ -31,6 +69,7 @@ program
     //.option("-m, --minify", "Enables code minification upon build.")
     //.option("-p, --publish", "Publish the pkx to the repository.")
     .option("--self", "Used for installing this pkx tool.")
+    .option("--set <key> <value>", "Sets the given configuration key and value for the active profile.")
     .option("--uninstall", "Removes the git pre-commit hook for automatic versionning.")
     .option("-w, --wrap <request>", "Creates a wrapped script that can be used for embedding.") //TODO
     .parse(process.argv);
@@ -56,10 +95,70 @@ if (!program.install && !program.self) {
     }
 }
 
-var pkx;
+process.env["ALLOW_CONFIG_MUTATIONS"]=true;
+if (program.profile) {
+    if (Object.prototype.toString.call(program.profile) === "[object String]") {
+        program.profile = [ program.profile, program.args[0] ];
+    }
+    if (program.profile.length < 2) {
+        console.error("Invalid profile operation, need to specify 2 parameters!");
+    }
+
+    switch(program.profile[0]) {
+        case "add":
+            if (config.has(program.profile[1])) {
+                console.error("Profile '" + program.profile[1] + "' already exist.");
+                return;
+            }
+            config[program.profile[1]] = configDefaultProfile;
+            console.log("Profile '" + program.profile[1] + "' added.");
+            break;
+        case "remove":
+            if (!config.has(program.profile[1])) {
+                console.error("Profile '" + program.profile[1] + "' does not exist.");
+                return;
+            }
+            delete config[program.profile[1]];
+            console.log("Profile '" + program.profile[1] + "' removed.");
+            break;
+        case "switch":
+            config.activeProfile = program.profile[1];
+            console.log("Active profile: " + config.activeProfile);
+            break;
+    }
+
+    // update configuration
+    fs.writeFileSync(configFile, JSON.stringify(config, null, "  "));
+    return;
+}
+
+
+var profile = config.get(config.activeProfile);
+console.log(JSON.stringify(profile));
+
+if (program.set) {
+    if (!profile.has(program.set[0])) {
+        console.error("The profile key '" + program.set[0] + "' is invalid.");
+        return;
+    }
+    if (Object.prototype.toString.call(program.set[1]) !== "[object String]") {
+        console.error("The profile value is invalid, should be of type 'String'.");
+        return;
+    }
+    profile[program.set[0]] = program.set[1];
+    console.log("Set '"+program.set[0]+"': " + profile[program.set[0]]);
+
+    // update configuration
+    fs.writeFileSync(configFile, JSON.stringify(config, null, "  "));
+    return;
+}
+
+var pkx, http, file;
 if (!program.nopkx && !program.self) {
-    define.parameters.configuration = { "repository" : "http://localhost:8080/repo" };
+    define.parameters.configuration = { "repository" : profile.repo };
     var pkx = require("../cc.pkx/pkx.js");
+    var http = require("../cc.io.http/http.js");
+    var file = require("../cc.io.file-system/file-system.js");
 }
 
 var URL_GIT_CCDUMMY = "https://github.com/create-conform/cc.dummy/archive/master.tar.gz";
@@ -141,6 +240,7 @@ if (program.build) {
                         exclList.push(pkxName);
                     }
                 }
+                exclList.push(".git");
                 exclList.push("build");
                 exclList.push("node_modules");
                 var exclOptn = "";

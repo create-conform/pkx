@@ -7,3 +7,9 @@
 [submodule "using.js"]
 	path = using.js
 	url = https://github.com/create-conform/using.js
+[submodule "cc.io.http"]
+	path = cc.io.http
+	url = https://github.com/create-conform/cc.io.http
+[submodule "cc.io.file-system"]
+	path = cc.io.file-system
+	url = https://github.com/create-conform/cc.io.file-system
