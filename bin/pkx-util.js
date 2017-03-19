@@ -53,7 +53,7 @@ try {
     }
 }
 
-
+process.env["NODE_CONFIG_DIR"]= path.join(__dirname, "..", "config");
 var config = require("config");
 
 program
