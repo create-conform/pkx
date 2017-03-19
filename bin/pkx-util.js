@@ -65,13 +65,14 @@ program
     .option("-i, --info <request>", "Shows basic package information.")
     .option("--init", "Creates an empty pkx project.")
     .option("--install", "Installs the git pre-commit hook for automatic versionning.")
+    .option("--loader <file>", "create a loader script for the wrapped request.")
     .option("--nopkx", "When performing install, this parameter indicates the given package is not pkx compatbile and will not perform the pre-commit hook.")
     //.option("-m, --minify", "Enables code minification upon build.")
     //.option("-p, --publish", "Publish the pkx to the repository.")
     .option("--self", "Used for installing this pkx tool.")
     .option("--set <key> <value>", "Sets the given configuration key and value for the active profile.")
     .option("--uninstall", "Removes the git pre-commit hook for automatic versionning.")
-    .option("-w, --wrap <request>", "Creates a wrapped script that can be used for embedding.") //TODO
+    .option("-w, --wrap <request>", "Creates a wrapped script that can be used for embedding.")
     .parse(process.argv);
 
 if (!program.install && !program.self) {
@@ -444,9 +445,10 @@ if (program.wrap) {
                 }
             }
             var modPath = path.join(process.cwd(), modId);
-            var modName = path.join(modPath, module.id == module.parameters.pkx.id + "/" ? module.parameters.pkx.main : module.id.substr(module.parameters.pkx.id.length + 1));
+            var modName = module.id == module.parameters.pkx.id + "/" ? module.parameters.pkx.main : module.id.substr(module.parameters.pkx.id.length + 1);
+            var modFile = path.join(modPath, modName);
 
-            order[module.id] = { "module" : module, "path" : modPath, "file" : modName };
+            order[module.id] = { "module" : module, "id": modId, "name": modName, "path" : modPath, "file" : modFile };
 
             return new Promise(function(resolve, reject) {
                 module.factory.readAsString().then(function (code) {
@@ -466,15 +468,17 @@ if (program.wrap) {
                     }
                     catch (e) {
                         console.error("Could not create directory '" + modPath + "'.");
+                        process.exit(32);
                         return;
                     }
 
                     // write wrapped file
                     try {
-                        fs.writeFileSync(modName, code);
+                        fs.writeFileSync(modFile, code);
                     }
                     catch (e) {
-                        console.error("Could not create wrapped file '" + modName + "'.");
+                        console.error("Could not create wrapped file '" + modFile + "'.");
+                        process.exit(32);
                         return;
                     }
 
@@ -491,6 +495,25 @@ if (program.wrap) {
             strOrder += o + "\r\n";//order[o].module.id + "\r\n";
         }
         console.log(strOrder);
+
+        if (program.loader) {
+            var browser = "var script;\r\nif (typeof document != \"undefined\") {\r\n";
+            var node = "else if (typeof require === \"function\") {\r\n";
+            for (var o in order) {
+                browser += "  script = document.createElement(\"script\");\r\n";
+                browser += "  script.src = \"" + order[o].id + "/" + order[o].name + "\";\r\n";
+                browser += "  try { document.body.appendChild(script); } catch(e) { console.error(e); }\r\n";
+                node += "  require(\"./" + order[o].id + "/" + order[o].name + "\");\r\n";
+            }
+            browser += "}\r\n";
+            node += "}\r\n";
+            try {
+                fs.writeFileSync(path.join(process.cwd(), program.loader), browser + node);
+            }
+            catch(e) {
+                console.error("Could not create loader script. Error: " + e);
+            }
+        }
     }, usingFailed, true);
 }
 
