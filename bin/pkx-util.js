@@ -57,22 +57,23 @@ process.env["NODE_CONFIG_DIR"]= path.join(__dirname, "..", "config");
 var config = require("config");
 
 program
+    .option("--appcache <file>", "create a appcache for the wrapped request.")
     .option("-b, --build", "Creates the pkx archive in the bin folder and increments the build number.")
     .option("--major", "Increments the major version number upon build.")
     .option("--minor", "Increments the minor version number upon build.")
     .option("-c, --clone <repository>", "Same as git clone, but runs install after.")
     .option("--profile [add|remove|switch] [profile]", "Performs profile operations.")
     .option("-i, --info <request>", "Shows basic package information.")
-    .option("--init", "Creates an empty pkx project.")
+    .option("--init", "creates an empty pkx project.")
     .option("--install", "Installs the git pre-commit hook for automatic versionning.")
     .option("--loader <file>", "create a loader script for the wrapped request.")
-    .option("--nopkx", "When performing install, this parameter indicates the given package is not pkx compatbile and will not perform the pre-commit hook.")
+    .option("--nopkx", "when performing install, this parameter indicates the given package is not pkx compatbile and will not perform the pre-commit hook.")
     //.option("-m, --minify", "Enables code minification upon build.")
     //.option("-p, --publish", "Publish the pkx to the repository.")
-    .option("--self", "Used for installing this pkx tool.")
-    .option("--set <key> <value>", "Sets the given configuration key and value for the active profile.")
-    .option("--uninstall", "Removes the git pre-commit hook for automatic versionning.")
-    .option("-w, --wrap <request>", "Creates a wrapped script that can be used for embedding.")
+    .option("--self", "used for installing this pkx tool.")
+    .option("--set <key> <value>", "sets the given configuration key and value for the active profile.")
+    .option("--uninstall", "removes the git pre-commit hook for automatic versionning.")
+    .option("-w, --wrap <request>", "creates a wrapped script that can be used for embedding.")
     .parse(process.argv);
 
 if (!program.install && !program.self) {
@@ -257,6 +258,17 @@ if (program.build) {
                         return;
                     }
 
+                    var commitPath = path.join(process.cwd(), ".commit");
+                    try {
+                        fs.accessSync(commitPath, fs.F_OK);
+                    } catch (e) {
+                        // no problem, ignorign absense of git
+                        return;
+                    }
+
+                    fs.unlinkSync(commitPath);
+                    childProcess.exec("git add \"" + path.join(process.cwd(), "package.json") + "\" && git add \"" + pkxPath + "\" && git commit --amend -C HEAD --no-verify");
+
                     // tag the git repo with the new version number
                     var git = childProcess.spawn("git", ["tag", "-d", oldVersion ]);
                     git.stderr.pipe(process.stderr);
@@ -419,6 +431,11 @@ if (program.wrap) {
     var order = [];
     var done = [];
 
+    if (request.length == 0) {
+        var pkxJSON = require(path.join(process.cwd(), "package.json"));
+        request = getRequestArgument(pkxJSON.pkxDependencies || pkxJSON.dependencies, true);
+    }
+
     using.apply(using, request).then(function() {
         function wrapModules(modules) {
             for (var m in modules) {
@@ -490,28 +507,42 @@ if (program.wrap) {
         }
 
         wrapModules(arguments);
-        var strOrder = "Order for including: \r\n";
+        var strOrder = "Order for including: \n";
         for (var o in order) {
-            strOrder += o + "\r\n";//order[o].module.id + "\r\n";
+            strOrder += o + "\n";//order[o].module.id + "\n";
         }
         console.log(strOrder);
 
-        if (program.loader) {
-            var browser = "var script;\r\nif (typeof document != \"undefined\") {\r\n";
-            var node = "else if (typeof require === \"function\") {\r\n";
+        if (program.loader || program.appcache) {
+            var browser = "var script;\nif (typeof document != \"undefined\") {\n";
+            var node = "else if (typeof require === \"function\") {\n";
+            var appcache = "CACHE MANIFEST\n# unique stamp: " + Math.random() + (+ new Date()) + "\n";
             for (var o in order) {
-                browser += "  script = document.createElement(\"script\");\r\n";
-                browser += "  script.src = \"" + order[o].id + "/" + order[o].name + "\";\r\n";
-                browser += "  try { document.body.appendChild(script); } catch(e) { console.error(e); }\r\n";
-                node += "  require(\"./" + order[o].id + "/" + order[o].name + "\");\r\n";
+                browser += "  script = document.createElement(\"script\");\n";
+                browser += "  script.src = \"" + order[o].id + "/" + order[o].name + "\";\n";
+                browser += "  try { document.body.appendChild(script); } catch(e) { console.error(e); }\n";
+                node += "  require(\"./" + order[o].id + "/" + order[o].name + "\");\n";
+                appcache += order[o].id + "/" + order[o].name + "\n";
             }
-            browser += "}\r\n";
-            node += "}\r\n";
-            try {
-                fs.writeFileSync(path.join(process.cwd(), program.loader), browser + node);
+            browser += "}\n";
+            node += "}\n";
+            if (program.loader) {
+                appcache += program.loader + "\n";
+                try {
+                    fs.writeFileSync(path.join(process.cwd(), program.loader), browser + node);
+                }
+                catch (e) {
+                    console.error("Could not create loader script. Error: " + e);
+                }
             }
-            catch(e) {
-                console.error("Could not create loader script. Error: " + e);
+            if (program.appcache) {
+                appcache += "\nNETWORK:\n*";
+                try {
+                    fs.writeFileSync(path.join(process.cwd(), program.appcache), appcache);
+                }
+                catch (e) {
+                    console.error("Could not create the appcache file. Error: " + e);
+                }
             }
         }
     }, usingFailed, true);
@@ -533,20 +564,24 @@ function install(dir) {
         if (!program.nopkx && !program.self) {
             console.log("Adding git pre-commit hook for automatic versionning.");
             // add commit hook to pkx build
-            var preCommitScript = path.join(dir, ".git", "hooks", "pre-commit");
-            var scriptFile = path.join(process.cwd(), preCommitScript);
-            fs.writeFileSync(scriptFile, "#! /bin/sh\npkx build\nexit $?");
+            var commitScript = path.join(dir, ".git", "hooks", "pre-commit");
+            var scriptFile = path.join(process.cwd(), commitScript);
+            fs.writeFileSync(scriptFile, "#! /bin/sh\necho test > .commit\nexit $?");
+            fs.chmodSync(scriptFile, 0755);
+            commitScript = path.join(dir, ".git", "hooks", "post-commit");
+            scriptFile = path.join(process.cwd(), commitScript);
+            fs.writeFileSync(scriptFile, "#! /bin/sh\nif [ -a .commit ]\n    then\n    pkx build\n    exit $?\nfi");
             fs.chmodSync(scriptFile, 0755);
         }
 
         installGitSubmodules(program.self? path.dirname(__dirname) : process.cwd());
     }
     catch(e) {
-        console.error("An error occurred while trying to create the git pre-commit hook.", e);
+        console.error("An error occurred while trying to create the git pre- and post-commit hooks.", e);
         return;
     }
     if (!program.nopkx && !program.self) {
-        console.log("Successfully " + (dir != "" ? "cloned repository and " : "") + "installed pre-commit hook!");
+        console.log("Successfully " + (dir != "" ? "cloned repository and " : "") + "installed pre- and post-commit hooks!");
     }
 }
 
@@ -610,16 +645,19 @@ function installGitSubmodules(cwd) {
 
 function uninstall() {
     try {
-        // add commit hook to pkx build
-        var preCommitScript = path.join(".git", "hooks", "pre-commit");
-        var scriptFile = path.join(process.cwd(), preCommitScript);
+        // remove commit hook to pkx build
+        var commitScript = path.join(".git", "hooks", "pre-commit");
+        var scriptFile = path.join(process.cwd(), commitScript);
+        fs.unlinkSync(scriptFile);
+        commitScript = path.join(".git", "hooks", "post-commit");
+        scriptFile = path.join(process.cwd(), commitScript);
         fs.unlinkSync(scriptFile);
     }
     catch(e) {
-        console.error("An error occurred while trying to create the git pre-commit hook.", e);
+        console.error("An error occurred while trying to create the git pre- and post-commit hooks.", e);
         return;
     }
-    console.log("Successfully removed the pre-commit hook.");
+    console.log("Successfully removed the pre- and post-commit hooks.");
 }
 
 function displayModuleInfo(module, indent) {
