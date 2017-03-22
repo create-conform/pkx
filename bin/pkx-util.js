@@ -244,46 +244,50 @@ if (program.build) {
                 }
                 exclList.push(".git");
                 exclList.push("build");
+                exclList.push("LICENSE");
+                exclList.push("README.md");
                 exclList.push("node_modules");
-                var exclOptn = "";
-                for (var e in exclList) {
-                    exclOptn += " --exclude='" + exclList[e] + "/*' --exclude='" + exclList[e] + "'";
-                }
-
-                childProcess.exec(PATH_TAR + " -cvf " + (process.platform == "win32" ? "/" + pkxPath.replace(/\\/g, "/").replace(/:/, "") : pkxPath) + (process.platform == "win32" ? exclOptn.replace(/\\/g, "/") : exclOptn) + " *", function (error, stdout, stderr) {
-                    process.stdout.write(stdout);
-                    process.stderr.write(stderr);
-                    if (error) {
-                        console.error("Failed to create the tar file. Error: " + error);
-                        return;
+                getGitIgnoreFiles(process.cwd(), exclList, function() {
+                    var exclOptn = "";
+                    for (var e in exclList) {
+                        exclOptn += " --exclude='" + exclList[e] + "/*' --exclude='" + exclList[e] + "'";
                     }
 
-                    var commitPath = path.join(process.cwd(), ".commit");
-                    try {
-                        fs.accessSync(commitPath, fs.F_OK);
-                    } catch (e) {
-                        // no problem, ignorign absense of git
-                        return;
-                    }
-
-                    fs.unlinkSync(commitPath);
-                    childProcess.exec("git add \"" + path.join(process.cwd(), "package.json") + "\" && git add \"" + pkxPath + "\" && git commit --amend -C HEAD --no-verify");
-
-                    // tag the git repo with the new version number
-                    var git = childProcess.spawn("git", ["tag", "-d", oldVersion ]);
-                    git.stderr.pipe(process.stderr);
-                    git.on("close", function(code) {
-                        if (code != 0) {
-                            console.warn("Failed to remove the old git repository version tag.");
+                    childProcess.exec(PATH_TAR + " -cvf " + (process.platform == "win32" ? "/" + pkxPath.replace(/\\/g, "/").replace(/:/, "") : pkxPath) + (process.platform == "win32" ? exclOptn.replace(/\\/g, "/") : exclOptn) + " *", function (error, stdout, stderr) {
+                        process.stdout.write(stdout);
+                        process.stderr.write(stderr);
+                        if (error) {
+                            console.error("Failed to create the tar file. Error: " + error);
+                            return;
                         }
 
-                        git = childProcess.spawn("git", ["tag", newVersion ]);
+                        var commitPath = path.join(process.cwd(), ".commit");
+                        try {
+                            fs.accessSync(commitPath, fs.F_OK);
+                        } catch (e) {
+                            // no problem, ignorign absense of git
+                            return;
+                        }
+
+                        fs.unlinkSync(commitPath);
+                        childProcess.exec("git add \"" + path.join(process.cwd(), "package.json") + "\" && git add \"" + pkxPath + "\" && git commit --amend -C HEAD --no-verify");
+
+                        // tag the git repo with the new version number
+                        var git = childProcess.spawn("git", ["tag", "-d", oldVersion ]);
                         git.stderr.pipe(process.stderr);
                         git.on("close", function(code) {
                             if (code != 0) {
-                                console.error("Failed to tag the git repository with the new version number.");
+                                console.warn("Failed to remove the old git repository version tag.");
                             }
 
+                            git = childProcess.spawn("git", ["tag", newVersion ]);
+                            git.stderr.pipe(process.stderr);
+                            git.on("close", function(code) {
+                                if (code != 0) {
+                                    console.error("Failed to tag the git repository with the new version number.");
+                                }
+
+                            });
                         });
                     });
                 });
@@ -751,6 +755,28 @@ function getRequestArgument(arg, wrap) {
         }
     }
     return request;
+}
+
+function getGitIgnoreFiles(cwd, arr, callback) {
+    var files = arr || [];
+    try {
+        var pathSubMod = path.join(cwd, ".gitignore");
+        fs.accessSync(pathSubMod, fs.F_OK);
+
+        var sub = readline.createInterface({
+            input: fs.createReadStream(pathSubMod)
+        });
+
+        sub.on("line", function (line) {
+            files.push(line);
+        });
+        sub.on("close", function () {
+            callback(files);
+        });
+
+    } catch (e) {
+        callback(files);
+    }
 }
 
 function mkdirSyncRecursive(directory) {
