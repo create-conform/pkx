@@ -518,7 +518,6 @@ if (program.wrap) {
         console.log(strOrder);
 
         if (program.loader || program.appcache) {
-            var browser = "if (typeof require === \"undefined\") {\n    function require(source) {\n        if (typeof source === \"string\" && source.substr(0,2) == \"./\") {\n            return document.write(\"<script language=\\\"javascript\\\" type=\\\"text/javascript\\\" src=\\\"\" + source + \"\\\"><\/sc\" + \"ript>\");\n        }\n        throw \"This is a polyfill for the require function in the allume bootloader.\";\n    }\n}\n";
             var node = "";
             var appcache = "CACHE MANIFEST\n# unique stamp: " + Math.random() + (+ new Date()) + "\n";
             for (var o in order) {
@@ -528,7 +527,7 @@ if (program.wrap) {
             if (program.loader) {
                 appcache += program.loader + "\n";
                 try {
-                    fs.writeFileSync(path.join(process.cwd(), program.loader), browser + node);
+                    fs.writeFileSync(path.join(process.cwd(), program.loader), node);
                 }
                 catch (e) {
                     console.error("Could not create loader script. Error: " + e);
