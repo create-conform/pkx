@@ -518,18 +518,13 @@ if (program.wrap) {
         console.log(strOrder);
 
         if (program.loader || program.appcache) {
-            var browser = "var script;\nif (typeof document != \"undefined\") {\n";
-            var node = "else if (typeof require === \"function\") {\n";
+            var browser = "if (typeof require === \"undefined\") {\n    function require(source) {\n        if (typeof source === \"string\" && source.substr(0,2) == \"./\") {\n            return document.write(\"<script language=\\\"javascript\\\" type=\\\"text/javascript\\\" src=\\\"\" + source + \"\\\"><\/sc\" + \"ript>\");\n        }\n        throw \"This is a polyfill for the require function in the allume bootloader.\";\n    }\n}\n";
+            var node = "";
             var appcache = "CACHE MANIFEST\n# unique stamp: " + Math.random() + (+ new Date()) + "\n";
             for (var o in order) {
-                browser += "  script = document.createElement(\"script\");\n";
-                browser += "  script.src = \"" + order[o].id + "/" + order[o].name + "\";\n";
-                browser += "  try { document.body.appendChild(script); } catch(e) { console.error(e); }\n";
-                node += "  require(\"./" + order[o].id + "/" + order[o].name + "\");\n";
+                node += "require(\"./" + order[o].id + "/" + order[o].name + "\");\n";
                 appcache += order[o].id + "/" + order[o].name + "\n";
             }
-            browser += "}\n";
-            node += "}\n";
             if (program.loader) {
                 appcache += program.loader + "\n";
                 try {
