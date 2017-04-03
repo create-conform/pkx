@@ -20,15 +20,17 @@ var using = require("../using.js/using.js");
 var error = require("../cc.error/error.js");
 
 var configDefaultProfile = {
-    "repo": "https://pacify.cc"
+    "repo": "https://api.github.com/repos/create-conform"
 };
 var configDefault = {
-    "activeProfile": "pacify",
-    "pacify": configDefaultProfile,
-    "dev": {
-        "repo": "http://localhost"
-    },
-    "prod": configDefaultProfile
+    "activeProfile": "create-conform",
+    "profiles" : {
+        "create-conform": configDefaultProfile,
+        "dev": {
+            "repo": "http://localhost:8080"
+        },
+        "prod": configDefaultProfile
+    }
 };
 var configDir = path.join(__dirname, "..", "config");
 var configFile = path.join(configDir, "default.json");
@@ -62,16 +64,19 @@ program
     .option("--major", "Increments the major version number upon build.")
     .option("--minor", "Increments the minor version number upon build.")
     .option("-c, --clone <repository>", "Same as git clone, but runs install after.")
-    .option("--profile [add|remove|switch] [profile]", "Performs profile operations.")
+    .option("--profile [add|remove|switch] <profile>", "Performs profile operations.")
+    .option("--profile [current]", "Returns the active profile.")
+    .option("--profile [list]", "Lists all profiles.")
+    .option("--profile [set] <key> <value>", "Set the specified key value of the active profile.")
     .option("-i, --info <request>", "Shows basic package information.")
     .option("--init", "creates an empty pkx project.")
     .option("--install", "Installs the git pre-commit hook for automatic versionning.")
     .option("--loader <file>", "create a loader script for the wrapped request.")
     .option("--nopkx", "when performing install, this parameter indicates the given package is not pkx compatbile and will not perform the pre-commit hook.")
+    .option("--tar", "when building, this parameters creates a pkx tar file in the builds subfolder.")
     //.option("-m, --minify", "Enables code minification upon build.")
     //.option("-p, --publish", "Publish the pkx to the repository.")
     .option("--self", "used for installing this pkx tool.")
-    .option("--set <key> <value>", "sets the given configuration key and value for the active profile.")
     .option("--uninstall", "removes the git pre-commit hook for automatic versionning.")
     .option("-w, --wrap <request>", "creates a wrapped script that can be used for embedding.")
     .parse(process.argv);
@@ -102,31 +107,56 @@ if (program.profile) {
     if (Object.prototype.toString.call(program.profile) === "[object String]") {
         program.profile = [ program.profile, program.args[0] ];
     }
-    if (program.profile.length < 2) {
-        console.error("Invalid profile operation, need to specify 2 parameters!");
-    }
 
     switch(program.profile[0]) {
+        case "list":
+            console.log("Profiles:");
+            for (var p in config.profiles) {
+                console.log("  " + p + ": " + JSON.stringify(config.profiles[p]));
+            }
+            return;
+        case "switch":
+            config.activeProfile = program.profile[1];
+            // fallthrough intended
+        case "current":
+            console.log("Active profile: '" + config.activeProfile + "'.");
+            if (program.profile[0] != "switch") {
+                return;
+            }
+            else {
+                break;
+            }
         case "add":
-            if (config.has(program.profile[1])) {
+            if (config.has("profiles." + program.profile[1])) {
                 console.error("Profile '" + program.profile[1] + "' already exist.");
                 return;
             }
-            config[program.profile[1]] = configDefaultProfile;
+            config.profiles[program.profile[1]] = configDefaultProfile;
             console.log("Profile '" + program.profile[1] + "' added.");
             break;
         case "remove":
-            if (!config.has(program.profile[1])) {
+            if (!config.has("profiles." + program.profile[1])) {
                 console.error("Profile '" + program.profile[1] + "' does not exist.");
                 return;
             }
-            delete config[program.profile[1]];
+            delete config.profiles[program.profile[1]];
             console.log("Profile '" + program.profile[1] + "' removed.");
             break;
-        case "switch":
-            config.activeProfile = program.profile[1];
-            console.log("Active profile: " + config.activeProfile);
+        case "set":
+            if (!config.has("profiles." + config.activeProfile + "." + program.profile[1])) {
+                console.error("The profile key '" + program.profile[1] + "' is invalid.");
+                return;
+            }
+            if (Object.prototype.toString.call(program.profile[2]) !== "[object String]") {
+                console.error("The profile value is invalid, should be of type 'String'.");
+                return;
+            }
+            config.profiles[config.activeProfile][program.profile[1]] = program.profile[2];
+            console.log("Set '"+program.profile[1]+"': " + config.profiles[config.activeProfile][program.profile[1]]);
             break;
+        default:
+            console.log("Unknown profile operation '" + program.profile[0] + "'.");
+            return;
     }
 
     // update configuration
@@ -135,31 +165,15 @@ if (program.profile) {
 }
 
 
-var profile = config.get(config.activeProfile);
+var profile = config.profiles[config.activeProfile];
 
-if (program.set) {
-    if (!profile.has(program.set[0])) {
-        console.error("The profile key '" + program.set[0] + "' is invalid.");
-        return;
-    }
-    if (Object.prototype.toString.call(program.set[1]) !== "[object String]") {
-        console.error("The profile value is invalid, should be of type 'String'.");
-        return;
-    }
-    profile[program.set[0]] = program.set[1];
-    console.log("Set '"+program.set[0]+"': " + profile[program.set[0]]);
-
-    // update configuration
-    fs.writeFileSync(configFile, JSON.stringify(config, null, "  "));
-    return;
-}
-
-var pkx, http, file;
+var pkx, gh, http, file;
 if (!program.nopkx && !program.self) {
     define.parameters.configuration = { "repository" : profile.repo };
-    var pkx = require("../cc.pkx/pkx.js");
-    var http = require("../cc.io.http/http.js");
-    var file = require("../cc.io.file-system/file-system.js");
+    var pkx = require("../cc.pkx");
+    var gh = require("../cc.pkx.request.github");
+    var http = require("../cc.io.http");
+    var file = require("../cc.io.file-system");
 }
 
 var URL_GIT_CCDUMMY = "https://github.com/create-conform/cc.dummy/archive/master.tar.gz";
@@ -202,95 +216,104 @@ if (program.build) {
         // write new package.json
         volume.open("/package.json", "io-access-overwrite").then(function (pkxJsonStream) {
             pkxJsonStream.write(JSON.stringify(volume.pkx, null, "  ")).then(function () {
-                // create build dir
-                var buildDir = path.join(process.cwd(), "build");
-                try {
-                    fs.accessSync(buildDir, fs.F_OK);
-
-                    // delete old version
-                    var oldPkx = path.join(buildDir, oldId.substr(0, oldId.lastIndexOf(".")) + ".pkx");
+                function commit() {
+                    var commitPath = path.join(process.cwd(), ".commit");
                     try {
-                        fs.unlinkSync(oldPkx);
-                    }
-                    catch(e) {
-                        console.warn("Could not delete old build '" + oldPkx + "'.");
-                    }
-                } catch (e) {
-                    fs.mkdirSync(buildDir);
-                }
-
-                var pkxPath = path.join(buildDir, volume.pkx.id.substr(0, volume.pkx.id.lastIndexOf("."))  + ".pkx");
-
-                var exclList = [];
-                var pkxDeps = volume.pkx.pkxDependencies || volume.pkx.dependencies;
-                for (var d in pkxDeps) {
-                    if (isNaN(d)) {
-                        continue;
-                    }
-                    var name = pkxDeps[d];
-                    if (typeof pkxDeps[d] == "object") {
-                        name = pkxDeps[d].package || "";
-                    }
-                    var pkxName = "";
-                    var nameParts = name.split(".");
-                    for (var i=0;i<nameParts.length;i++) {
-                        if (isNaN(nameParts[i])) {
-                            pkxName += (pkxName != ""? "." : "") + nameParts[i];
-                        }
-                    }
-                    if (pkxName && pkxName != "") {
-                        exclList.push(pkxName);
-                    }
-                }
-                exclList.push(".git");
-                exclList.push("build");
-                exclList.push("LICENSE");
-                exclList.push("README.md");
-                exclList.push("node_modules");
-                getGitIgnoreFiles(process.cwd(), exclList, function() {
-                    var exclOptn = "";
-                    for (var e in exclList) {
-                        exclOptn += " --exclude='" + exclList[e] + "/*' --exclude='" + exclList[e] + "'";
+                        fs.accessSync(commitPath, fs.F_OK);
+                    } catch (e) {
+                        // no problem, ignoring absense of git
+                        return;
                     }
 
-                    childProcess.exec(PATH_TAR + " -cvf " + (process.platform == "win32" ? "/" + pkxPath.replace(/\\/g, "/").replace(/:/, "") : pkxPath) + (process.platform == "win32" ? exclOptn.replace(/\\/g, "/") : exclOptn) + " *", function (error, stdout, stderr) {
-                        process.stdout.write(stdout);
-                        process.stderr.write(stderr);
-                        if (error) {
-                            console.error("Failed to create the tar file. Error: " + error);
-                            return;
+                    fs.unlinkSync(commitPath);
+                    childProcess.exec("git add \"" + path.join(process.cwd(), "package.json") + "\" " + (program.tar? "&& git add \"" + pkxPath + "\" " : "") + "&& git commit --amend -C HEAD --no-verify");
+
+                    // tag the git repo with the new version number
+                    var git = childProcess.spawn("git", ["tag", "-d", oldVersion]);
+                    git.stderr.pipe(process.stderr);
+                    git.on("close", function (code) {
+                        if (code != 0) {
+                            console.warn("Failed to remove the old git repository version tag.");
                         }
 
-                        var commitPath = path.join(process.cwd(), ".commit");
-                        try {
-                            fs.accessSync(commitPath, fs.F_OK);
-                        } catch (e) {
-                            // no problem, ignorign absense of git
-                            return;
-                        }
-
-                        fs.unlinkSync(commitPath);
-                        childProcess.exec("git add \"" + path.join(process.cwd(), "package.json") + "\" && git add \"" + pkxPath + "\" && git commit --amend -C HEAD --no-verify");
-
-                        // tag the git repo with the new version number
-                        var git = childProcess.spawn("git", ["tag", "-d", oldVersion ]);
+                        git = childProcess.spawn("git", ["tag", newVersion]);
                         git.stderr.pipe(process.stderr);
-                        git.on("close", function(code) {
+                        git.on("close", function (code) {
                             if (code != 0) {
-                                console.warn("Failed to remove the old git repository version tag.");
+                                console.error("Failed to tag the git repository with the new version number.");
                             }
 
-                            git = childProcess.spawn("git", ["tag", newVersion ]);
-                            git.stderr.pipe(process.stderr);
-                            git.on("close", function(code) {
-                                if (code != 0) {
-                                    console.error("Failed to tag the git repository with the new version number.");
-                                }
-
-                            });
                         });
                     });
-                });
+                }
+
+                if (program.tar) {
+                    // create build dir
+                    var buildDir = path.join(process.cwd(), "build");
+                    try {
+                        fs.accessSync(buildDir, fs.F_OK);
+
+                        // delete old version
+                        var oldPkx = path.join(buildDir, oldId.substr(0, oldId.lastIndexOf(".")) + ".pkx");
+                        try {
+                            fs.unlinkSync(oldPkx);
+                        }
+                        catch (e) {
+                            console.warn("Could not delete old build '" + oldPkx + "'.");
+                        }
+                    } catch (e) {
+                        fs.mkdirSync(buildDir);
+                    }
+
+                    var pkxPath = path.join(buildDir, volume.pkx.id.substr(0, volume.pkx.id.lastIndexOf(".")) + ".pkx");
+
+                    var exclList = [];
+                    var pkxDeps = volume.pkx.pkxDependencies || volume.pkx.dependencies;
+                    for (var d in pkxDeps) {
+                        if (isNaN(d)) {
+                            continue;
+                        }
+                        var name = pkxDeps[d];
+                        if (typeof pkxDeps[d] == "object") {
+                            name = pkxDeps[d].package || "";
+                        }
+                        var pkxName = "";
+                        var nameParts = name.split(".");
+                        for (var i = 0; i < nameParts.length; i++) {
+                            if (isNaN(nameParts[i])) {
+                                pkxName += (pkxName != "" ? "." : "") + nameParts[i];
+                            }
+                        }
+                        if (pkxName && pkxName != "") {
+                            exclList.push(pkxName);
+                        }
+                    }
+                    exclList.push(".git");
+                    exclList.push("build");
+                    exclList.push("LICENSE");
+                    exclList.push("README.md");
+                    exclList.push("node_modules");
+                    getGitIgnoreFiles(process.cwd(), exclList, function () {
+                        var exclOptn = "";
+                        for (var e in exclList) {
+                            exclOptn += " --exclude='" + exclList[e] + "/*' --exclude='" + exclList[e] + "'";
+                        }
+
+                        childProcess.exec(PATH_TAR + " -cvf " + (process.platform == "win32" ? "/" + pkxPath.replace(/\\/g, "/").replace(/:/, "") : pkxPath) + (process.platform == "win32" ? exclOptn.replace(/\\/g, "/") : exclOptn) + " *", function (error, stdout, stderr) {
+                            process.stdout.write(stdout);
+                            process.stderr.write(stderr);
+                            if (error) {
+                                console.error("Failed to create the tar file. Error: " + error);
+                                return;
+                            }
+
+                            commit();
+                        });
+                    });
+                }
+                else {
+                    commit();
+                }
             }, buildFail);
         }, buildFail);
     }, buildFail);
