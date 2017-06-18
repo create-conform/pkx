@@ -29,7 +29,8 @@ var configDefault = {
         "dev": {
             "repo": "http://localhost:8080"
         },
-        "prod": configDefaultProfile
+        "prod": configDefaultProfile,
+        "fs": ""
     }
 };
 var configDir = path.join(__dirname, "..", "config");
@@ -73,6 +74,7 @@ program
     .option("--install", "Installs the git pre-commit hook for automatic versionning.")
     .option("--loader <file>", "create a loader script for the wrapped request.")
     .option("--nopkx", "when performing install, this parameter indicates the given package is not pkx compatbile and will not perform the pre-commit hook.")
+    .option("--run", "run the specified package.")
     .option("--tar", "when building, this parameters creates a pkx tar file in the builds subfolder.")
     //.option("-m, --minify", "Enables code minification upon build.")
     //.option("-p, --publish", "Publish the pkx to the repository.")
@@ -143,15 +145,15 @@ if (program.profile) {
             console.log("Profile '" + program.profile[1] + "' removed.");
             break;
         case "set":
-            if (!config.has("profiles." + config.activeProfile + "." + program.profile[1])) {
-                console.error("The profile key '" + program.profile[1] + "' is invalid.");
-                return;
-            }
+            //if (!config.has("profiles." + config.activeProfile + "." + program.profile[1])) {
+            //    console.error("The profile key '" + program.profile[1] + "' is invalid.");
+            //    return;
+            //}
             if (Object.prototype.toString.call(program.profile[2]) !== "[object String]") {
                 console.error("The profile value is invalid, should be of type 'String'.");
                 return;
             }
-            config.profiles[config.activeProfile][program.profile[1]] = program.profile[2];
+            config.profiles[config.activeProfile][program.profile[1]] = (program.profile[2] === "true"? true : program.profile[2] === "false"? false : program.profile[2]);
             console.log("Set '"+program.profile[1]+"': " + config.profiles[config.activeProfile][program.profile[1]]);
             break;
         default:
@@ -166,6 +168,12 @@ if (program.profile) {
 
 
 var profile = config.profiles[config.activeProfile];
+
+if (global) {
+    global.allume = {};
+    global.allume.parameters = {};
+    global.allume.parameters.profile = profile;
+}
 
 var pkx, gh, http, file;
 if (!program.nopkx && !program.self) {
@@ -189,6 +197,14 @@ if (program.info) {
             displayModuleInfo(module);
         }
     }, usingFailed, true);
+}
+
+if (program.run) {
+    var request = getRequestArgument(program.run);
+
+    using.apply(using, request).then(function() {
+        // success!
+    }, usingFailed);
 }
 
 if (program.build) {
@@ -299,7 +315,7 @@ if (program.build) {
                             exclOptn += " --exclude='" + exclList[e] + "/*' --exclude='" + exclList[e] + "'";
                         }
 
-                        childProcess.exec(PATH_TAR + " -cvf " + (process.platform == "win32" ? "/" + pkxPath.replace(/\\/g, "/").replace(/:/, "") : pkxPath) + (process.platform == "win32" ? exclOptn.replace(/\\/g, "/") : exclOptn) + " *", function (error, stdout, stderr) {
+                        childProcess.exec(PATH_TAR + " -czvf " + (process.platform == "win32" ? "/" + pkxPath.replace(/\\/g, "/").replace(/:/, "") : pkxPath) + (process.platform == "win32" ? exclOptn.replace(/\\/g, "/") : exclOptn) + " *", function (error, stdout, stderr) {
                             process.stdout.write(stdout);
                             process.stderr.write(stderr);
                             if (error) {
@@ -397,7 +413,6 @@ if (program.init) {
         // overwrite the package.json file
         var pkxVolume = new pkx.PKXVolume("file://" + (process.platform =="win32"? "/" : "") + process.cwd().replace(/\\/g, "/") + "/");
         pkxVolume.then(function (volume) {
-            volume.pkx.company = "";
             volume.pkx.version = "0.0.0";
             rl.question("Name: (" + dirPkxName + ") ", function(str) {
                 if (str != "") {
