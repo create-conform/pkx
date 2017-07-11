@@ -92,41 +92,10 @@ DESCRIPTION
 
 COMMANDS
 
-        init                                     Creates a folder with files from the cc.dummy pkx template.
+        wrap   <selector>  [options]             Creates wrapped version of the selected module, and saves them in subfolders in the current working directory.
 
-        clone  <repository>                      Same as git clone, but invokes the install command after cloning.
-
-        build  [file]      [options]             Creates a new build. When no file is specififed,
-                                                 only the patch version in the package.json is incremented.
-               --minor                           Will increase the minor version number in the package.json,
-                                                 and reset the patch version to 0.
-               --major                           Will increase the major version number in the package.json,
-                                                 and reset the minor and patch version to 0.
-               --tar                             When specified, creates a tar package in the build folder.
-
-        info   <selector>                        Prints data from the package.json of the selected module.
-
-        wrap   <selector>  [options]             Creates wrapped version of the selected module. This wrapped
-                                                 version will be saved
-               --appcache  <appcache file>       Creates an HTML5 appcache file.
-               --loader    <loader file>         Create a script that works in browser and node environment
-                                                 that will load all the files required for the request being wrapped.
-
-        install                                  Installs the git commit hooks that will invoke the build command
-                                                 on every commit (wich will increase the patch version).
-        uninstall                                Removes the git commit hooks if installed.
-
-        profile list                             Lists all of the profiles available in the configuration.
-        
-                add      <name>                  Add a new profile.
-                
-                remove   <name>                  Removes the profile with the given name.
-                
-                current                          Displays the name of the active profile.
-                
-                switch   <name>                  Activates the profile with the given name.
-                
-                set      <key>   <value>         Sets the key value combination in the active profile.
+               --appcache  <file>                Creates an HTML5 appcache file for the request being wrapped.
+               --loader    <file>                Create a 'require' script that will load all the files required for the request being wrapped.
 ```
 
 ## Getting Started
@@ -308,6 +277,7 @@ The following selector will get a stream for the README.md file from a package w
 | target | no | In a selector, you can specify target properties that will be matched against the properties of the cc.host library. There are property modifiers available, such as "!" to invert the result. See cc.host documentation for the list of available properties. | <pre lang="javascript">{ "runtime" : "nw.js" }</pre> |
 | upgradable | no | You can specify if the given package selector is upgradable, that means if a newer version of the specified package is available, it will be used instead. Possible values are: `null` (not upgradable), `"patch"` (only higher patch number), `"minor"` (higher patch & minor number), `"major"` (any higher version). If this option is not provided, it defaults to "patch". | `minor` |
 | optional | no | If set to true, the loader will not fail when the package is not loaded due to errors or target mismatch. | `true` |
+| ignoreCache | no | If set to true, the loader will ignore the module cache for this request. | `true` |
 
 ## Bootloader
 

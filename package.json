@@ -1,16 +1,15 @@
 {
   "name": "pkx",
-  "version": "0.2.6",
+  "version": "2.0.0",
   "description": "Toolkit for developing PKX modules.",
-  "main": "bin/pkx-util.js",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/create-conform/pkx.git"
-  },
+  "main": "pkx.js",
   "dependencies": {
-    "commander": "^2.9.0",
-    "config": "^1.25.1"
+    "allume": "^0.37.16"
   },
+  "pkxDependencies": [
+    "cc.io.0.1",
+    "cc.cli.0.1"
+  ],
   "bin": {
     "pkx": "bin/pkx-util.js"
   },
@@ -24,11 +23,5 @@
     "library",
     "tar",
     "gzip"
-  ],
-  "author": "Nick Verlinden",
-  "license": "Apache-2.0",
-  "bugs": {
-    "url": "https://github.com/create-conform/pkx/issues"
-  },
-  "homepage": "https://github.com/create-conform/pkx#readme"
+  ]
 }
