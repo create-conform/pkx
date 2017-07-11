@@ -1,15 +1,15 @@
 {
   "name": "pkx",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Toolkit for developing PKX modules.",
   "main": "pkx.js",
-  "dependencies": {
-    "allume": "^0.37.16"
-  },
   "pkxDependencies": [
     "cc.io.0.1",
     "cc.cli.0.1"
   ],
+  "scripts": {
+    "preinstall": "npm install allume@\"> 0.37.16\" -g"
+  },
   "bin": {
     "pkx": "bin/pkx-util.js"
   },
