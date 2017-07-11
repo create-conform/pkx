@@ -23,7 +23,7 @@ var config = { "argv" : [ "pkx" ] };
 
 // cleanup args
 var argv = [];
-argv[0] = "file:///" + path.join(__dirname, "..") + path.sep;
+argv[0] = "file:///" + (path.join(__dirname, "..") + path.sep).replace(/\\/g, "/");
 for (var a in process.argv) {
     if (a <= 1) {
         continue;
@@ -35,7 +35,7 @@ argv[2] = JSON.stringify(config).replace(/"/g, "\"");
 //argv[3] = "--ui";
 
 // spawn child process
-var ls = childProcess.spawn("allume", argv, {"cwd": PATH_CWD});
+var ls = childProcess.spawn((/^win/.test(process.platform) ? "allume.cmd" : "allume"), argv, {"cwd": PATH_CWD});
 
 // print stdout
 ls.stdout.on("data", function(data) {
