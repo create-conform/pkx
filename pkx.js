@@ -111,6 +111,7 @@
         //
         // module wrapping
         //
+        var wrapOutput = "";
         var wrapOrder = [];
         var wrapDone = [];
         function wrapModules(modules) {
@@ -138,7 +139,7 @@
                     modId += (modId != ""? "." : "") + nameParts[i];
                 }
             }
-            var modPath = "./" + modId;
+            var modPath = "./" + wrapOutput + modId;
             var modName = module.id == module.parameters.pkx.id + "/" ? module.parameters.pkx.main : module.id.substr(module.parameters.pkx.id.length + 1);
             var modFile = modPath + "/" + modName;
 
@@ -179,13 +180,13 @@
             if (saveLoader) {
                 appcache += saveLoader + "\n";
 
-                io.URI.open("./" + saveLoader, io.ACCESS_OVERWRITE, true).then(function(stream) {
+                io.URI.open("./" + wrapOutput + saveLoader, io.ACCESS_OVERWRITE, true).then(function(stream) {
                     stream.write(node).then();
                 });
             }
             if (saveAppCache) {
                 appcache += "\nNETWORK:\n*";
-                io.URI.open("./" + saveAppCache, io.ACCESS_OVERWRITE, true).then(function(stream) {
+                io.URI.open("./" + wrapOutput + saveAppCache, io.ACCESS_OVERWRITE, true).then(function(stream) {
                     stream.write(appcache).then();
                 });
             }
@@ -198,6 +199,7 @@
         // process command
         //
         var wrap = cli.command("wrap", "Creates wrapped version of the selected module, and saves them in subfolders in the current working directory.");
+        wrap.option("--output <path>", "Sets the output directory of the wrapped modules, loader and appcache files. This must be a relative path ex. 'bin/'.");
         wrap.option("--appcache <file>", "Create a 'require' script that will load all the files required for the request being wrapped.");
         wrap.option("--loader <file>", "Creates an HTML5 appcache file for the request being wrapped.");
 
@@ -205,6 +207,20 @@
 
         if (p) {
             if (p.wrap) {
+                // set relative output path
+                if (p.wrap["--output"]) {
+                    wrapOutput = p.wrap["--output"].path;
+
+                    if (!wrapOutput || wrapOutput == "" || wrapOutput.indexOf("/") == 0 || wrapOutput.indexOf("\\\\") == 0 || wrapOutput.indexOf(":") >= 0) {
+                        console.error("The output path '" + wrapOutput + "' is invalid. It should be a relative path to the current working directory.");
+                        return;
+                    }
+
+                    // append slash if required
+                    if (wrapOutput.lastIndexOf("/") != wrapOutput.length - 1) {
+                        wrapOutput += "/";
+                    }
+                }
                 // open package.json in local directory
                 io.URI.open("package.json").then(function(stream) {
                     stream.readAsJSON().then(function(pkxJSON) {
