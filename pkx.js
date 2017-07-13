@@ -12,6 +12,10 @@
 /////////////////////////////////////////////////////////////////////////////////////////////
 (function() {
     function PKX(pkx, module, configuration) {
+        var STR_HEADER_MANIFEST = "CACHE MANIFEST";
+        var STR_HEADER_CACHE = "CACHE:";
+        var STR_UNIQUE_STAMP = "# unique stamp:";
+
         var io = require("cc.io");
         var cli = require("cc.cli");
 
@@ -172,22 +176,89 @@
             }
 
             var node = "";
-            var appcache = "CACHE MANIFEST\n# unique stamp: " + Math.random() + (+ new Date()) + "\n";
+            var files = [];
             for (var o in wrapOrder) {
                 node += "require(\"./" + wrapOrder[o].id + "/" + wrapOrder[o].name + "\");\n";
-                appcache += wrapOrder[o].id + "/" + wrapOrder[o].name + "\n";
+                files.push(wrapOrder[o].id + "/" + wrapOrder[o].name);
             }
             if (saveLoader) {
-                appcache += saveLoader + "\n";
+                files.push(saveLoader);
 
                 io.URI.open("./" + wrapOutput + saveLoader, io.ACCESS_OVERWRITE, true).then(function(stream) {
                     stream.write(node).then();
                 });
             }
             if (saveAppCache) {
-                appcache += "\nNETWORK:\n*";
-                io.URI.open("./" + wrapOutput + saveAppCache, io.ACCESS_OVERWRITE, true).then(function(stream) {
-                    stream.write(appcache).then();
+                // open appcache file
+                io.URI.open("./" + wrapOutput + saveAppCache, io.ACCESS_MODIFY, true).then(function(stream) {
+                    stream.readAsString().then(function(appcache) {
+                        var lines = appcache.split(/\r?\n/);
+                        
+                        // first pass - remove files from the array that are already in the appcache file
+                        for (var l in lines) {
+                            for (var f in files) {
+                                if (lines[l].trim().substr(0,files[f].length) == files[f]) {
+                                    files.splice(f, 1);
+                                    break;
+                                }
+                            }
+                        }
+
+                        // second pass - add files after the cache entry
+                        var manifestHeader;
+                        var cacheHeader;
+                        var uniqueStamp;
+                        var newLines = [];
+                        for (var l in lines) {
+                            if (!uniqueStamp && lines[l].trim().substr(0, STR_UNIQUE_STAMP.length) == STR_UNIQUE_STAMP) {
+                                newLines.push(STR_UNIQUE_STAMP + Math.random() + (+ new Date()));
+                                uniqueStamp = true;
+                                continue;
+                            }
+                            if (!manifestHeader && lines[l].trim().substr(0, STR_HEADER_MANIFEST.length) == STR_HEADER_MANIFEST) {
+                                manifestHeader = newLines.length;
+                            }
+                            
+                            newLines.push(lines[l]);
+
+                            if (!cacheHeader && lines[l].trim().substr(0, STR_HEADER_CACHE.length) == STR_HEADER_CACHE) {
+                                for (var f in files) {
+                                    newLines.push(files[f]);
+                                }
+                                cacheHeader = true;
+                            }
+                        }
+
+                        // if there was no cache header, add it to the end
+                        if (!cacheHeader) {
+                            newLines.push(STR_HEADER_CACHE);
+                            for (var f in files) {
+                                newLines.push(files[f]);
+                            }
+                        }
+
+                        // if manifest header was not present, add to top
+                        if (!manifestHeader && manifestHeader != 0) {
+                            manifestHeader = 0;
+                            newLines.splice(manifestHeader, 0, STR_HEADER_MANIFEST);
+                        }
+
+                        // if unique timestamp is missing, add as second line
+                        if (!uniqueStamp) {
+                            newLines.splice(manifestHeader + 1, 0, STR_UNIQUE_STAMP + Math.random() + (+ new Date()));
+                        }
+
+                        // compose string to write of new lines
+                        var appcache = "";
+                        var first;
+                        for (var n in newLines) {
+                            appcache += (first? "\n" : "") + newLines[n];
+                            first = true;
+                        }
+
+                        // write new appcache
+                        stream.write(appcache).then().catch(console.error);
+                    }).catch(console.error);
                 });
             }
         }
