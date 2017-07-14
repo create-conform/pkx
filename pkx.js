@@ -190,74 +190,76 @@
             }
             if (saveAppCache) {
                 // open appcache file
-                io.URI.open("./" + wrapOutput + saveAppCache, io.ACCESS_MODIFY, true).then(function(stream) {
+                io.URI.open("./" + wrapOutput + saveAppCache, io.ACCESS_READ, true).then(function(stream) {
                     stream.readAsString().then(function(appcache) {
                         var lines = appcache.split(/\r?\n/);
-                        
-                        // first pass - remove files from the array that are already in the appcache file
-                        for (var l in lines) {
-                            for (var f in files) {
-                                if (lines[l].trim().substr(0,files[f].length) == files[f]) {
-                                    files.splice(f, 1);
-                                    break;
+
+                        io.URI.open("./" + wrapOutput + saveAppCache, io.ACCESS_OVERWRITE, true).then(function(stream) {
+                            // first pass - remove files from the array that are already in the appcache file
+                            for (var l in lines) {
+                                for (var f in files) {
+                                    if (lines[l].trim().substr(0,files[f].length) == files[f]) {
+                                        files.splice(f, 1);
+                                        break;
+                                    }
                                 }
                             }
-                        }
 
-                        // second pass - add files after the cache entry
-                        var manifestHeader;
-                        var cacheHeader;
-                        var uniqueStamp;
-                        var newLines = [];
-                        for (var l in lines) {
-                            if (!uniqueStamp && lines[l].trim().substr(0, STR_UNIQUE_STAMP.length) == STR_UNIQUE_STAMP) {
-                                newLines.push(STR_UNIQUE_STAMP + Math.random() + (+ new Date()));
-                                uniqueStamp = true;
-                                continue;
-                            }
-                            if (!manifestHeader && lines[l].trim().substr(0, STR_HEADER_MANIFEST.length) == STR_HEADER_MANIFEST) {
-                                manifestHeader = newLines.length;
-                            }
-                            
-                            newLines.push(lines[l]);
+                            // second pass - add files after the cache entry
+                            var manifestHeader;
+                            var cacheHeader;
+                            var uniqueStamp;
+                            var newLines = [];
+                            for (var l in lines) {
+                                if (!uniqueStamp && lines[l].trim().substr(0, STR_UNIQUE_STAMP.length) == STR_UNIQUE_STAMP) {
+                                    newLines.push(STR_UNIQUE_STAMP + Math.random() + (+ new Date()));
+                                    uniqueStamp = true;
+                                    continue;
+                                }
+                                if (!manifestHeader && lines[l].trim().substr(0, STR_HEADER_MANIFEST.length) == STR_HEADER_MANIFEST) {
+                                    manifestHeader = newLines.length;
+                                }
+                                
+                                newLines.push(lines[l]);
 
-                            if (!cacheHeader && lines[l].trim().substr(0, STR_HEADER_CACHE.length) == STR_HEADER_CACHE) {
+                                if (!cacheHeader && lines[l].trim().substr(0, STR_HEADER_CACHE.length) == STR_HEADER_CACHE) {
+                                    for (var f in files) {
+                                        newLines.push(files[f]);
+                                    }
+                                    cacheHeader = true;
+                                }
+                            }
+
+                            // if there was no cache header, add it to the end
+                            if (!cacheHeader) {
+                                newLines.push(STR_HEADER_CACHE);
                                 for (var f in files) {
                                     newLines.push(files[f]);
                                 }
-                                cacheHeader = true;
                             }
-                        }
 
-                        // if there was no cache header, add it to the end
-                        if (!cacheHeader) {
-                            newLines.push(STR_HEADER_CACHE);
-                            for (var f in files) {
-                                newLines.push(files[f]);
+                            // if manifest header was not present, add to top
+                            if (!manifestHeader && manifestHeader != 0) {
+                                manifestHeader = 0;
+                                newLines.splice(manifestHeader, 0, STR_HEADER_MANIFEST);
                             }
-                        }
 
-                        // if manifest header was not present, add to top
-                        if (!manifestHeader && manifestHeader != 0) {
-                            manifestHeader = 0;
-                            newLines.splice(manifestHeader, 0, STR_HEADER_MANIFEST);
-                        }
+                            // if unique timestamp is missing, add as second line
+                            if (!uniqueStamp) {
+                                newLines.splice(manifestHeader + 1, 0, STR_UNIQUE_STAMP + Math.random() + (+ new Date()));
+                            }
 
-                        // if unique timestamp is missing, add as second line
-                        if (!uniqueStamp) {
-                            newLines.splice(manifestHeader + 1, 0, STR_UNIQUE_STAMP + Math.random() + (+ new Date()));
-                        }
+                            // compose string to write of new lines
+                            var appcache = "";
+                            var first;
+                            for (var n in newLines) {
+                                appcache += (first? "\n" : "") + newLines[n];
+                                first = true;
+                            }
 
-                        // compose string to write of new lines
-                        var appcache = "";
-                        var first;
-                        for (var n in newLines) {
-                            appcache += (first? "\n" : "") + newLines[n];
-                            first = true;
-                        }
-
-                        // write new appcache
-                        stream.write(appcache).then().catch(console.error);
+                            // write new appcache
+                            stream.write(appcache).then().catch(console.error);
+                        }).catch(console.error);
                     }).catch(console.error);
                 });
             }
