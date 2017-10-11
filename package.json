@@ -10,7 +10,7 @@
     ]
   },
   "scripts": {
-    "preinstall": "npm install allume@\">= 0.37.36\" -g"
+    "preinstall": "npm install allume@\">= 0.45.0\" -g"
   },
   "bin": {
     "pkx": "bin/pkx-util.js"
