@@ -144,7 +144,7 @@
                 }
             }
             var modPath = "./" + wrapOutput + modId;
-            var modName = module.id == module.parameters.pkx.id + "/" ? module.parameters.pkx.main : module.id.substr(module.parameters.pkx.id.length + 1);
+            var modName = module.id == module.parameters.pkx.id + "/" ? module.parameters.pkx.pkx.main : module.id.substr(module.parameters.pkx.id.length + 1);
             var modFile = modPath + "/" + modName;
 
             wrapOrder[module.id] = { "module" : module, "id": modId, "name": modName, "path" : modPath, "file" : modFile };
@@ -297,7 +297,7 @@
                 // open package.json in local directory
                 io.URI.open("package.json").then(function(stream) {
                     stream.readAsJSON().then(function(pkxJSON) {
-                        var request = getRequestArgument(pkxJSON.pkxDependencies || pkxJSON.dependencies, true);
+                        var request = getRequestArgument(pkxJSON.pkx.dependencies, true);
                         using.apply(using, request).then(function() {
                             // wrap all modules
                             wrapModules(arguments);
